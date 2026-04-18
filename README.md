@@ -1,5 +1,5 @@
 # A Daily Word Game (Simplified Version)
-## 1. Graphical Abstract
+## 1. Graphical Abstract.
 <img width="600" height="600" alt="game_preview" src="https://github.com/user-attachments/assets/53a599ac-e31e-4ce9-9ac4-9e534f9bac43" />
 
 > *Quick look at the gameplay: Four letters, four tries, one goal.**Quick look at the gameplay: Four letters, four tries, one goal.*
