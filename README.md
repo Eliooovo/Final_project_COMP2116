@@ -35,12 +35,11 @@ The development lifecycle was divided into three main Sprints:
 ### Members (Roles & Responsibilities & Portion)
 *The total contribution portion for all members is 100%.*
 
-* **LIN HONGHUA [33.34%]**:
-    * **Responsibilities:** Project Lead; designed the core scoring algorithm; implemented the UI/UX interface and retro pixel-art aesthetics; integrated the Web Audio sound system and designed the Developer Mode architecture.
-* **CHENG KWING LEUNG [33.33%]**:
-    * **Responsibilities:** Dictionary integration and data cleaning for word lists; implemented the dynamic dictionary filtering algorithm; conducted cross-browser compatibility testing and level progression logic testing.
-* **DENG SIYI [33.33%]**:
-    * **Responsibilities:** Authored the comprehensive Technical Specifications and user-facing documentation. Managed the Product Compliance Audit, ensuring all project components, dependencies, and external assets align with professional release standards. Verified the Error-Handling Logic for edge cases, such as invalid word lengths and lexicon mismatches.
+| No. | Name | Contribution | Roles | Responsibilities |
+| :-- | :--- | :--- | :--- | :--- |
+| 1 | **LIN HONGHUA** <br>  | *33.34%* | Lead Software Architect & UI/UX Specialist | •designed the core scoring algorithm <br> • implemented the UI/UX interface and retro pixel-art aesthetics<br> • Integrated the Web Audio sound system <br> • Designed the Developer Mode architecture |
+| 2 | **CHENG KWING LEUNG** <br>  | *33.33%* | Back-end Logic & Data Engineer | • Dictionary integration and data cleaning for word lists <br> • Implemented the dynamic dictionary filtering algorithm <br> • Conducted cross-browser compatibility testing <br> • Level progression logic testing |
+| 3 | **DENG SIYI** <br>  | *33.33%* | Software Quality Assurance (SQA) & Release Specialist | • Authored the project documentation <br> •  Conducted Product Compliance Audits to ensure all project assets and logic met professional release standards <br> • Performed quality assurance and frontend interaction logic testing |
 
 ### Schedule
 * **Week 1:** Requirement analysis, UI sketch design, and basic architecture setup.
