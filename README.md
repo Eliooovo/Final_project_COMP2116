@@ -40,7 +40,7 @@ The development lifecycle was divided into three main Sprints:
 * **CHENG KWING LEUNG [33.33%]**:
     * **Responsibilities:** Dictionary integration and data cleaning for word lists; implemented the dynamic dictionary filtering algorithm; conducted cross-browser compatibility testing and level progression logic testing.
 * **DENG SIYI [33.33%]**:
-    * **Responsibilities:** Authored the project documentation (README.md) and Appendix A (Contribution Form); documented the Generative AI usage and declaration (Appendix B); performed quality assurance and frontend interaction logic testing for the "Game Rules" and "Game Over" panels.
+    * **Responsibilities:** Authored the comprehensive Technical Specifications and user-facing documentation. Managed the Product Compliance Audit, ensuring all project components, dependencies, and external assets align with professional release standards. Verified the Error-Handling Logic for edge cases, such as invalid word lengths and lexicon mismatches.
 
 ### Schedule
 * **Week 1:** Requirement analysis, UI sketch design, and basic architecture setup.
