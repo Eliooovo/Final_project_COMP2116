@@ -1,0 +1,2502 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arcane Wordle</title>
+  <style>
+    *, *::after, *::before {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background-color: #1a0f0a;
+      background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('微信图片_20260324212016_549_1288.png');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* 所有全屏界面通用样式 */
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(26, 15, 10, 0.35);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      color: #f5d97a;
+      text-align: center;
+    }
+
+    .game-container {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: transparent !important;
+    }
+
+    .rules-panel, .correct-letters-panel, #developer-hint-panel {
+      background: rgba(40, 22, 5, 0.68) !important;
+      backdrop-filter: blur(8px);
+    }
+
+    .screen-content {
+      max-width: 600px;
+      width: 90%;
+      padding: 3rem 2rem;
+      border: 3px solid rgba(210,155,40,0.7);
+      border-radius: 12px;
+      background: rgba(40,22,5,0.85);
+      box-shadow: 0 0 40px rgba(255,180,40,0.4);
+    }
+
+    .screen h2 {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 2.8rem;
+      margin: 0 0 2rem;
+      text-shadow: 0 0 20px rgba(255,180,40,0.9);
+    }
+
+    .big-btn {
+      font-family: 'Courier New', monospace;
+      font-size: 1.4rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: #f5e6c8;
+      background: rgba(40,22,5,0.9);
+      border: 3px solid rgba(210,155,40,0.8);
+      border-radius: 8px;
+      padding: 1.1rem 3rem;
+      margin: 1rem;
+      cursor: pointer;
+      width: 100%;
+      max-width: 360px;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 25px rgba(255,170,30,0.5);
+    }
+
+    .big-btn:hover {
+      background: rgba(80,45,8,0.95);
+      border-color: #ffd24d;
+      transform: scale(1.05);
+      box-shadow: 0 0 35px rgba(255,200,60,0.7);
+    }
+
+    .level-btn {
+      font-family: 'Courier New', monospace;
+      font-size: 1.4rem;
+      width: 120px;
+      height: 120px;
+      margin: 10px;
+      border: 4px solid rgba(210,155,40,0.8);
+      border-radius: 12px;
+      background: rgba(40,22,5,0.85);
+      color: #f5d97a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(255,180,40,0.4);
+      transition: all 0.3s ease;
+    }
+
+    .level-btn:hover {
+      transform: scale(1.1);
+      border-color: #ffd24d;
+      box-shadow: 0 0 30px rgba(255,200,60,0.8);
+    }
+
+    /* 移除开始页背景图（保留 #start-screen 其余 inline 样式与 DOM） */
+    #start-screen {
+      background-image: none !important;
+      background-size: auto !important;
+      background-position: initial !important;
+      background-repeat: no-repeat !important;
+    }
+
+    .level-btn {
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+
+    .level-btn .level-lock {
+      display: none;
+      font-size: 2rem;
+      line-height: 1;
+      opacity: 0.9;
+      filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.65));
+    }
+
+    .level-btn.locked {
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .level-btn.locked .level-lock {
+      display: block;
+    }
+
+    .level-btn.locked:hover {
+      transform: none;
+      border-color: rgba(210, 155, 40, 0.8);
+      box-shadow: 0 0 20px rgba(255, 180, 40, 0.4);
+    }
+
+    .login-form input {
+      width: 100%;
+      max-width: 340px;
+      padding: 14px;
+      margin: 12px 0;
+      font-size: 1.1rem;
+      background: rgba(20,10,5,0.9);
+      border: 2px solid #c9a84c;
+      color: #f5e6c8;
+      border-radius: 6px;
+    }
+
+    .login-form button {
+      margin-top: 20px;
+    }
+
+    /* 原有游戏元素默认隐藏，进入关卡后显示 */
+    [data-guess-grid],
+    [data-keyboard],
+    .arcane-title {
+      display: none;
+    }
+
+    /* 鍵盤樣式 - 標準 QWERTY 布局 */
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+      justify-content: center;
+      align-items: center;
+      padding: 1em;
+      background: transparent;
+      margin: 1rem auto;
+    }
+
+    .keyboard-row {
+      display: flex;
+      gap: 0.3em;
+      justify-content: center;
+    }
+
+    .key {
+      font-size: inherit;
+      min-width: 2.5em;
+      height: 3em;
+      border: 1px solid rgba(180, 130, 40, 0.5);
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: hsla(
+        var(--hue, 35),
+        var(--saturation, 40%),
+        calc(var(--lightness-offset, 0%) + var(--lightness, 22%)),
+        0.75
+      );
+      color: #e8c97a;
+      fill: #e8c97a;
+      text-transform: uppercase;
+      border-radius: .15em;
+      cursor: pointer;
+      user-select: none;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      text-shadow: 0 0 6px rgba(255, 200, 80, 0.5);
+      backdrop-filter: blur(1px);
+      transition: all 0.2s ease;
+    }
+
+    .key.wide {
+      min-width: 4em;
+      font-size: 0.9em;
+    }
+
+    .key > svg { width: 1.75em; height: 1.75em; }
+    .key:hover, .key:focus { --lightness-offset: 10%; }
+    .key.wrong { --lightness: 23%; }
+    .key.wrong-location {
+      --hue: 49;
+      --saturation: 51%;
+      --lightness: 47%;
+    }
+    .key.correct {
+      --hue: 115;
+      --saturation: 29%;
+      --lightness: 43%;
+    }
+
+    .guess-grid {
+      display: grid;
+      justify-content: center;
+      align-content: center;
+      grid-template-columns: repeat(4, minmax(2.5rem, 4.5em));
+      grid-template-rows: repeat(4, minmax(2.5rem, 4.5em));
+      gap: .4em;
+      margin: 2rem auto;
+      max-width: 420px;
+      padding: 1vh 0 1vh;
+    }
+
+    .guess-grid.hard {
+      grid-template-columns: repeat(6, minmax(2rem, 3.5em));
+      grid-template-rows: repeat(6, minmax(2rem, 3.5em));
+      max-width: 520px;
+    }
+
+    .tile {
+      font-size: clamp(1.2rem, 5vmin, 2em);
+      color: #f5e6c8;
+      border: .1em solid rgba(210, 160, 60, 0.6);
+      text-transform: uppercase;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      user-select: none;
+      transition: transform 250ms linear, background-color 200ms ease, border-color 200ms ease;
+      background-color: rgba(20, 10, 5, 0.55);
+      backdrop-filter: blur(2px);
+      text-shadow: 0 0 8px rgba(255, 200, 80, 0.8);
+      font-family: 'Courier New', monospace;
+    }
+
+    .tile[data-state="active"] {
+      border-color: hsl(200, 1%, 34%);
+    }
+
+    /* 全錯：維持預設格外觀（不另加灰底提示） */
+    .tile[data-state="absent"] {
+      border: .1em solid rgba(210, 160, 60, 0.6);
+      background-color: rgba(20, 10, 5, 0.55);
+    }
+
+    .tile[data-state="wrong-location"] {
+      border: none;
+      background-color: hsl(49, 51%, 47%);
+    }
+
+    .tile[data-state="correct"] {
+      border: none;
+      background-color: hsl(115, 29%, 43%);
+    }
+
+    .tile.shake { animation: wordle-shake 250ms ease-in-out; }
+    .tile.dance { animation: wordle-dance 500ms ease-in-out; }
+    .tile.flip { transform: rotateX(90deg); }
+
+    @keyframes wordle-shake {
+      10% { transform: translateX(-5%); }
+      30% { transform: translateX(5%); }
+      50% { transform: translateX(-7.5%); }
+      70% { transform: translateX(7.5%); }
+      90% { transform: translateX(-5%); }
+      100% { transform: translateX(0); }
+    }
+
+    @keyframes wordle-dance {
+      20% { transform: translateY(-50%); }
+      40% { transform: translateY(5%); }
+      60% { transform: translateY(-25%); }
+      80% { transform: translateY(2.5%); }
+      90% { transform: translateY(-5%); }
+      100% { transform: translateY(0); }
+    }
+
+    .alert-container {
+      position: fixed;
+      top: 10vh;
+      left: 50vw;
+      transform: translateX(-50%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .alert {
+      background-color: rgba(40, 25, 8, 0.92);
+      color: #f5d87a;
+      border: 1px solid rgba(200, 150, 50, 0.6);
+      padding: .75em;
+      border-radius: .25em;
+      opacity: 1;
+      transition: opacity 500ms ease-in-out;
+      margin-bottom: .5em;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    .alert:last-child { margin-bottom: 0; }
+    .alert.hide { opacity: 0; }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== 原有初始页面（完全不变） ==================== -->
+  <div id="start-screen" style="
+    position: fixed;
+    inset: 0;
+    background-color: #1a0f0a;
+    background-image: url('magic_academy.png');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+  ">
+    <!-- Dark overlay -->
+    <div style="position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(8,4,2,0.25) 0%, rgba(8,4,2,0.55) 40%, rgba(8,4,2,0.72) 100%); pointer-events: none;"></div>
+
+    <!-- Content wrapper -->
+    <div style="position: relative; text-align: center; padding: 2rem;">
+      <h1 style="font-family: 'Georgia', 'Times New Roman', serif; font-size: clamp(1.8rem, 7vmin, 3.8rem); color: #f5d97a; text-shadow: 0 0 18px rgba(255,180,40,0.9), 0 0 40px rgba(255,120,0,0.55), 0 0 80px rgba(200,80,0,0.3); letter-spacing: 0.08em; margin: 0 0 0.3em; line-height: 1.15;">A Daily Word Game</h1>
+      <p style="font-family: 'Courier New', monospace; font-size: clamp(0.75rem, 2.8vmin, 1.25rem); color: #c9a84c; letter-spacing: 0.35em; text-transform: uppercase; text-shadow: 0 0 10px rgba(255,160,40,0.7); margin: 0 0 2.8em;">✦ Simplified Version ✦</p>
+      <button id="start-btn" onclick="beginGame()" style="font-family: 'Courier New', monospace; font-size: clamp(0.9rem, 3vmin, 1.3rem); letter-spacing: 0.22em; text-transform: uppercase; color: #f5e6c8; background: rgba(40,22,5,0.78); border: 2px solid rgba(210,155,40,0.7); border-radius: 0.4em; padding: 0.75em 2.4em; cursor: pointer; text-shadow: 0 0 10px rgba(255,200,80,0.7); box-shadow: 0 0 18px rgba(200,130,20,0.35), inset 0 0 12px rgba(255,160,30,0.08); transition: all 0.25s ease; backdrop-filter: blur(3px);">⚔ Start Game</button>
+    </div>
+  </div>
+
+  <!-- ==================== Mode Selection Screen ==================== -->
+  <div id="mode-screen" class="screen">
+    <div class="screen-content">
+      <h2>Select Game Mode</h2>
+      <button class="big-btn" onclick="selectDeveloperMode()">Developer Mode</button>
+      <button class="big-btn" onclick="selectVisitorMode()">Player Mode</button>
+    </div>
+  </div>
+
+  <!-- ==================== Developer Login Screen ==================== -->
+  <div id="login-screen" class="screen">
+    <div class="screen-content login-form">
+      <h2>Developer Login</h2>
+      <p style="margin-bottom: 1.5rem; color: #c9a84c;">Enter designated credentials</p>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem; width: 100%;">
+        <input id="username-input" type="text" placeholder="Username" autocomplete="off" style="width: 100%; max-width: 300px;">
+        <input id="password-input" type="password" placeholder="Password" style="width: 100%; max-width: 300px;">
+        <button class="big-btn" onclick="attemptLogin()" style="width: 100%; max-width: 300px; margin-top: 1rem;">Login</button>
+      </div>
+      <button onclick="backToModeFromLogin()" style="margin-top: 1.5rem; background: transparent; border: none; color: #c9a84c; font-size: 1rem; text-decoration: underline; display: block; margin-left: auto; margin-right: auto;">← Back to Modes</button>
+    </div>
+  </div>
+
+  <!-- ==================== Difficulty Selection Screen ==================== -->
+  <div id="difficulty-screen" class="screen">
+    <div class="screen-content">
+      <h2>Select Difficulty</h2>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+        <button class="big-btn" onclick="selectEasy()">4×4 (Easy)</button>
+        <button class="big-btn" onclick="selectHard()">6×6 (Hard)</button>
+      </div>
+      <button onclick="backToModeFromDifficulty()" style="margin-top: 2rem; background: transparent; border: none; color: #c9a84c; font-size: 1rem; text-decoration: underline; display: block; margin-left: auto; margin-right: auto;">← Back to Modes</button>
+    </div>
+  </div>
+
+  <!-- ==================== 4×4 Levels Screen ==================== -->
+  <div id="easy-levels-screen" class="screen">
+    <div class="screen-content">
+      <h2>4×4 Mode - Select Level</h2>
+      <div style="display: flex; flex-wrap: nowrap; justify-content: center; gap: 15px; margin: 2rem 0;">
+        <div class="level-btn" data-difficulty="easy" data-stage="1" onclick="tryStartLevel('easy1')"><span class="level-btn-label">1</span><span class="level-lock" aria-hidden="true">🔒</span></div>
+        <div class="level-btn" data-difficulty="easy" data-stage="2" onclick="tryStartLevel('easy2')"><span class="level-btn-label">2</span><span class="level-lock" aria-hidden="true">🔒</span></div>
+        <div class="level-btn" data-difficulty="easy" data-stage="3" onclick="tryStartLevel('easy3')"><span class="level-btn-label">3</span><span class="level-lock" aria-hidden="true">🔒</span></div>
+      </div>
+      <button onclick="backToDifficulty()" style="background: transparent; border: none; color: #c9a84c; font-size: 1rem; text-decoration: underline;">← Back to Difficulty</button>
+    </div>
+  </div>
+
+  <!-- ==================== 6×6 Levels Screen ==================== -->
+  <div id="hard-levels-screen" class="screen">
+    <div class="screen-content">
+      <h2>6×6 Mode - Select Level</h2>
+      <div style="display: flex; flex-wrap: nowrap; justify-content: center; gap: 15px; margin: 2rem 0;">
+        <div class="level-btn" data-difficulty="hard" data-stage="1" onclick="tryStartLevel('hard1')"><span class="level-btn-label">1</span><span class="level-lock" aria-hidden="true">🔒</span></div>
+        <div class="level-btn" data-difficulty="hard" data-stage="2" onclick="tryStartLevel('hard2')"><span class="level-btn-label">2</span><span class="level-lock" aria-hidden="true">🔒</span></div>
+        <div class="level-btn" data-difficulty="hard" data-stage="3" onclick="tryStartLevel('hard3')"><span class="level-btn-label">3</span><span class="level-lock" aria-hidden="true">🔒</span></div>
+      </div>
+      <button onclick="backToDifficulty()" style="background: transparent; border: none; color: #c9a84c; font-size: 1rem; text-decoration: underline;">← Back to Difficulty</button>
+    </div>
+  </div>
+
+  <!-- ==================== Game Over Screen ==================== -->
+  <div id="game-over-screen" class="screen">
+    <div class="screen-content">
+      <h2 id="game-over-title"></h2>
+      <p id="game-over-message" style="font-size: 1.5rem; margin: 1rem 0 2rem; color: #f5d97a;"></p>
+      <div id="game-over-buttons" style="display: flex; flex-direction: column; align-items: center; gap: 1rem;"></div>
+    </div>
+  </div>
+
+  <!-- ==================== Main Game UI ==================== -->
+  <div class="game-container" style="display: none; position: fixed; inset: 0; background-color: #1a0f0a;">
+    <!-- Rules Panel -->
+    <div class="rules-panel" style="width: 280px; padding: 2rem; border-right: 2px solid rgba(210,155,40,0.5); background: rgba(40,22,5,0.5);">
+      <h3 style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 1.5rem; color: #f5d97a; text-shadow: 0 0 15px rgba(255,180,40,0.8); margin-bottom: 1.5rem; text-align: center;">Game Rules</h3>
+
+      <div style="margin-bottom: 1.5rem;">
+        <p style="font-family: 'Courier New', monospace; font-size: 0.95rem; color: #e8c97a; line-height: 1.6; margin-bottom: 1rem;">
+          📝 Guess the <span style="color: #ffd24d; font-weight: bold;">4-letter</span> or <span style="color: #ffd24d; font-weight: bold;">6-letter</span> word.
+        </p>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;">
+          <div style="width: 30px; height: 30px; background-color: hsl(115, 29%, 43%); border: none; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-family: 'Courier New', monospace; font-size: 1rem;">A</div>
+          <span style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #e8c97a;">Correct letter and position (Green)</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;">
+          <div style="width: 30px; height: 30px; background-color: hsl(49, 51%, 47%); border: none; display: flex; align-items: center; justify-content: center; color: #000; font-weight: bold; font-family: 'Courier New', monospace; font-size: 1rem;">B</div>
+          <span style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #e8c97a;">Correct letter, wrong position (Yellow)</span>
+        </div>
+      </div>
+
+      <div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem;">
+          <div style="width: 30px; height: 30px; background-color: rgba(20, 10, 5, 0.55); border: 1px solid rgba(210, 160, 60, 0.6); display: flex; align-items: center; justify-content: center; color: #f5e6c8; font-weight: bold; font-family: 'Courier New', monospace; font-size: 1rem;">C</div>
+          <span style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #e8c97a;">Incorrect letter (No color)</span>
+        </div>
+      </div>
+
+      <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(210,155,40,0.3);">
+        <p style="font-family: 'Courier New', monospace; font-size: 0.85rem; color: #c9a84c; text-align: center;">
+          ✦ Use keyboard or tap screen buttons ✦
+        </p>
+      </div>
+    </div>
+
+    <!-- Main Game Area -->
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem;">
+      <div class="arcane-title" style="text-align:center; padding: 0.8vh 0 0; color: #f0c96a; font-family: 'Courier New', monospace; font-size: clamp(0.7rem, 2vmin, 1.1rem); letter-spacing: 0.3em; text-transform: uppercase; text-shadow: 0 0 12px rgba(255,180,50,0.9), 0 0 24px rgba(255,120,0,0.4);">✦ Arcane Lexicon ✦</div>
+      <div data-guess-grid class="guess-grid" style="display: grid;"></div>
+      <div data-keyboard class="keyboard" style="display: flex; max-width: 580px; margin: 1rem auto; padding: 0 8px;"></div>
+    </div>
+
+    <!-- Developer Hint Panel -->
+    <div id="developer-hint-panel" style="display: none; width: 280px; padding: 2rem; border-left: 2px solid rgba(255,100,100,0.5); background: rgba(40,22,5,0.5);">
+      <h3 style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 1.5rem; color: #ff6b6b; text-shadow: 0 0 15px rgba(255,100,100,0.8); margin-bottom: 1.5rem; text-align: center;">Developer Hint</h3>
+
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <p style="font-family: 'Courier New', monospace; font-size: 0.9rem; color: #c9a84c; margin-bottom: 1rem;">
+          Correct answer:
+        </p>
+        <div id="developer-answer" style="font-family: 'Courier New', monospace; font-size: 1.2rem; color: #ff6b6b; font-weight: bold; letter-spacing: 0.2em; text-shadow: 0 0 10px rgba(255,100,100,0.8); padding: 0.8rem; background: rgba(255,100,100,0.1); border-radius: 8px; border: 2px solid rgba(255,100,100,0.3); display: inline-block; white-space: nowrap;">
+          -----
+        </div>
+      </div>
+
+      <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,100,100,0.3);">
+        <p style="font-family: 'Courier New', monospace; font-size: 0.85rem; color: #ff8888; text-align: center;">
+          ✦ For developer testing only ✦
+        </p>
+      </div>
+    </div>
+
+    <!-- Found Letters Panel -->
+    <div class="correct-letters-panel" style="width: 280px; padding: 2rem; border-left: 2px solid rgba(210,155,40,0.5); background: rgba(40,22,5,0.5);">
+      <h3 style="font-family: 'Georgia', 'Times New Roman', serif; font-size: 1.5rem; color: #f5d97a; text-shadow: 0 0 15px rgba(255,180,40,0.8); margin-bottom: 1.5rem; text-align: center;">Discovered Letters</h3>
+
+      <div id="correct-letters-container" style="display: flex; flex-direction: column; gap: 1rem;">
+        <!-- Dynamic content here -->
+        <p id="no-correct-letters" style="font-family: 'Courier New', monospace; font-size: 0.95rem; color: #8a7a5c; text-align: center; padding: 2rem 0;">
+          No letters found yet.<br>Guess words to find letters!
+        </p>
+      </div>
+
+      <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(210,155,40,0.3);">
+        <p style="font-family: 'Courier New', monospace; font-size: 0.85rem; color: #c9a84c; text-align: center;">
+          ✦ Letters from green tiles ✦
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert-container" data-alert-container></div>
+
+  <script>
+    // ==================== 音效系统（保持原样） ====================
+    const AudioCtx = window.AudioContext || window.webkitAudioContext
+    let audioCtx = null
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new AudioCtx()
+      return audioCtx
+    }
+    function playKeyClick() { /* 原有代码不变 */
+      const ctx = getAudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.05); gain.gain.setValueAtTime(0.18, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08); osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.08)
+    }
+    function playWelcome() { /* 原有代码不变 */
+      const ctx = getAudioCtx(); const notes = [523, 659, 784, 1047]; notes.forEach((freq, i) => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.type = 'triangle'; osc.frequency.value = freq; const t = ctx.currentTime + i * 0.18; gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.22, t + 0.05); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35); osc.start(t); osc.stop(t + 0.35) })
+    }
+    function playWin() { /* 原有代码不变 */
+      const ctx = getAudioCtx(); const notes = [523, 659, 784, 1047, 1175, 1047, 784, 1047]; notes.forEach((freq, i) => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.type = 'triangle'; osc.frequency.value = freq; const t = ctx.currentTime + i * 0.15; gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.25, t + 0.04); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3); osc.start(t); osc.stop(t + 0.3) })
+    }
+    function playLose() { /* 原有代码不变 */
+      const ctx = getAudioCtx(); const notes = [392, 330, 294, 220]; notes.forEach((freq, i) => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.2); osc.frequency.exponentialRampToValueAtTime(freq * 0.85, ctx.currentTime + i * 0.2 + 0.3); const t = ctx.currentTime + i * 0.2; gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35); osc.start(t); osc.stop(t + 0.35) })
+    }
+    let welcomePlayed = false
+
+    // ==================== 游戏核心配置（保持原样） ====================
+    const WORD_LENGTH = 4
+    const MAX_GUESSES = 4
+    const FLIP_ANIMATION_DURATION = 500
+    const DANCE_ANIMATION_DURATION = 500
+
+    // 简易模式 4 字母目标词
+    const targetWordsEasy = [
+      "ABLE", "ACID", "ALSO", "AREA", "AXIS", "BABY", "BACK", "BALD", "BALL", "BANK", "BATH", "BEAR", "BIRD", "BLUE", "CAKE", "CALL", "CAMP", "CASH", "CHAT", "CITY", "CLUB", "COLD", "DOLL", "DOOR", "DUCK", "EAST", "EVIL", "EXAM", "FACE", "FAIR", "FALL", "FARM", "FOOT", "GAME", "GIRL", "GIVE", "GLOW", "GOAL", "HAIR", "HALF", "HARD", "HATE", "IRON", "JAZZ", "JULY", "JUMP", "JUNE", "JUST", "KIND", "KING", "KISS", "KNEE", "KNOW", "LAST", "LAZY", "LEAD", "LION", "LIST", "LONG", "LOVE", "MEAL", "MILK", "MOON", "MOST", "NAME", "NEAR", "NEWS", "NICE", "OPEN", "OVAL", "OVEN", "POOL", "POOR", "PULL", "RACE", "RAIN", "RANK", "RICE", "RING", "ROAD", "ROOT", "SAND", "SEED", "TAKE", "TEST", "THAT", "THIS", "TIME", "TOOL", "VIEW", "WALK", "WEAK", "WEEK", "WHAT", "WHEN", "WITH", "WORD", "YEAR", "ZOOM"
+    ]
+
+    // 困难模式 6 字母目标词
+    const targetWordsHard = [
+      "ABSORB", "ACCEPT", "ACCESS", "ACCENT", "ACCORD", "ACCUSE", "ACTIVE", "ACTUAL", "ADHERE", "ADJUST",
+      "ADMIRE", "ADVICE", "AFFECT", "AFFORD", "AGENCY", "AGENDA", "ALLEGE", "AMOUNT", "ANNUAL", "APPEAR",
+      "ASPECT", "ASSESS", "ASSIGN", "ASSIST", "ASSUME", "ASSURE", "ATTACH", "ATTEND", "AUTHOR", "BEHALF",
+      "BEHAVE", "BELIEF", "BELONG", "BENIGN", "BEYOND", "BINARY", "BORDER", "BORROW", "BRANCH", "BREACH",
+      "BRIDGE", "BUDGET", "BURDEN", "BUREAU", "CAMPUS", "CANCER", "CARBON", "CAREER", "CASUAL", "CENSUS",
+      "CHARGE", "CHOICE", "CHORUS", "CIRCLE", "CLIENT", "CLINIC", "COLUMN", "COMBAT", "COMMIT", "COMMON",
+      "COMPLY", "CONVEY", "CORPUS", "COUPLE", "DAMAGE", "DANGER", "DEBATE", "DECADE", "DECENT", "DECIDE",
+      "DECREE", "DEDUCE", "DEFEAT", "DEFECT", "DEFEND", "DEFINE", "DEGREE", "DELETE", "DEPEND", "DEPICT",
+      "DEPLOY", "DERIVE", "DESERT", "DESIGN", "DESIRE", "DETAIL", "DETECT", "DEVICE", "DEVISE", "DEVOTE",
+      "DIFFER", "DIGEST", "DIRECT", "DOMAIN", "DONATE", "DOSAGE", "DOUBLE", "DRIVEN", "DURING", "EMERGE",
+      "EMPIRE", "EMPLOY", "ENABLE", "ENERGY", "ENGAGE", "ENGINE", "ENIGMA", "ENOUGH", "ENRICH", "ENROLL",
+      "ENSURE", "ENTAIL", "ENTIRE", "ENTITY", "EQUITY", "ESCAPE", "ESTATE", "ETHICS", "ETHNIC", "EVOLVE",
+      "EXCEED", "EXCEPT", "EXCESS", "EXCITE", "EXPOSE", "EXTEND", "EXTENT", "FABRIC", "FACADE", "FACIAL",
+      "FACTOR", "FAILED", "FAMILY", "FAMOUS", "FAVOUR", "FELLOW", "FEMALE", "FIERCE", "FIGURE", "FILTER",
+      "FISCAL", "FLIGHT", "GALAXY", "GATHER", "GENDER", "GENTLE", "GLANCE", "GLOBAL", "GOVERN", "GROUND",
+      "GROWTH", "GUILTY", "HABITS", "HANDLE", "HAPPEN", "HARBOR", "HARDLY", "HAZARD", "HEALTH", "HIGHLY",
+      "HOLLOW", "HONEST", "HONOUR", "HUMBLE", "HUNGER", "HYBRID", "IGNORE", "IMMUNE", "IMPACT", "IMPORT",
+      "IMPOSE", "INCOME", "INDUCE", "INFANT", "INFECT", "INFORM", "INJURY", "INLAND", "INNATE", "INSECT",
+      "INSERT", "INSIDE", "INSIST", "INTACT", "INTAKE", "INTEND", "INVEST", "INVITE", "ISLAND", "ITALIC",
+      "JARGON", "JUNIOR", "KERNEL", "KETTLE", "KEYPAD", "KINDLY", "LABOUR", "LATEST", "LAUNCH", "LAWYER",
+
+      // ========================================== 
+      // 以下為新增的 6 字母單詞（已修復長度與整齊排版） 
+      // ========================================== 
+      
+      // 新增單詞 - A 
+      "ALWAYS", "ANSWER", "ARTIST", "AUTUMN", "AVENUE", 
+      
+      // 新增單詞 - B 
+      "BANANA", "BASKET", "BATTLE", "BEAUTY", "BECAME", 
+      "BEFORE", "BEHIND", "BETTER", "BOTTLE", "BOTTOM", 
+      "BOUNCE", "BRIGHT", "BURGER", 
+      
+      // 新增單詞 - C 
+      "CAMERA", "CANDLE", "CANNOT", "CARROT", "CENTRE", 
+      "CHANCE", "CHANGE", "CHEESE", "COFFEE", "COUPLE", 
+      
+      // 新增單詞 - D 
+      "DANCER", "DEADLY", "DEMAND", "DINNER", "DOCTOR", 
+      "DOLLAR", 
+      
+      // 新增單詞 - E 
+      "EFFORT", "EITHER", "ELEVEN", "EXPERT", "EXPORT", 
+      
+      // 新增單詞 - F 
+      "FATHER", "FINGER", "FINISH", "FLOWER", "FOLLOW", 
+      "FOREST", "FRIEND", 
+      
+      // 新增單詞 - G 
+      "GARAGE", "GARDEN", "GENIUS", "GERMAN", "GOLDEN", 
+      "GOSSIP", "GUITAR", 
+      
+      // 新增單詞 - H 
+      "HAMMER", "HEAVEN", "HEIGHT", "HELMET", "HEROIC", 
+      "HIDDEN", "HUNTER", 
+      
+      // 新增單詞 - I 
+      "IGNITE", "INDEED", "INDOOR", "INJECT", "INVENT", 
+      
+      // 新增單詞 - J 
+      "JACKET", "JAILOR", "JAMMED", "JAUNTY", "JERSEY", 
+      "JEWELS", "JIGGLE", "JIGSAW", "JINGLE", "JOCKEY", 
+      "JOINED", "JUMPER", "JUNGLE", 
+      
+      // 新增單詞 - K 
+      "KEEPER", "KENNEL", "KICKED", "KICKER", "KILLER", 
+      "KINGLY", "KITTEN", "KNIGHT", "KNOWER", 
+      
+      // 新增單詞 - L 
+      "LADDER", "LASTING", "LEADER", "LEAGUE", "LEGACY", 
+      "LEGEND", "LEISURE", "LENGTH", "LESSON", "LETTER", 
+      "LITTLE", "LIZARD", "LOCKED", 
+      
+      // 新增單詞 - M 
+      "MAGNET", "MAINLY", "MAMMAL", "MANAGE", "MANNER", 
+      "MANUAL", "MARKET", "MASTER", "MATTER", "MEDIUM", 
+      "MEMBER", "MEMORY", 
+      
+      // 新增單詞 - N 
+      "NARROW", "NATION", "NATIVE", "NATURE", "NEARLY", 
+      "NEEDLE", "NEPHEW", "NOBODY", "NORMAL", "NOTICE", 
+      "NUMBER", "NUTMEG", 
+      
+      // 新增單詞 - O 
+      "OBJECT", "OBTAIN", "OFFICE", "ONLINE", "OPENED", 
+      "ORANGE", "ORIGIN", "ORPHAN", "OUTFIT", "OUTLAW", 
+      "OUTPUT", "OXYGEN", 
+      
+      // 新增單詞 - P 
+      "PACKET", "PALACE", "PARENT", "PARROT", "PAYING", 
+      "PEOPLE", "PEPPER", "PERIOD", "PERSON", "PLANET", 
+      "PLEASE", "PURPLE", 
+      
+      // 新增單詞 - Q 
+      "QUAINT", "QUAKER", "QUARKS", "QUARRY", "QUARTZ", 
+      "QUENCH", "QUINCE", "QUIRKY", "QUIVER", "QUORUM", 
+      "QUOTAS", "QUOTED", 
+      
+      // 新增單詞 - R 
+      "RABBIT", "RADISH", "RADIUS", "RANDOM", "RARELY", 
+      "RATHER", "READER", "REALLY", "REASON", "RECENT", 
+      "RECORD", "REDUCE", 
+      
+      // 新增單詞 - T 
+      "TABLET", "TACKLE", "TALENT", "TATTOO", "TEMPLE", 
+      "TENNIS", "THANKS", "THIRST", "THIRTY", 
+      
+      // 新增單詞 - U 
+      "UNABLE", "UNFAIR", "UNIQUE", "UNJUST", "UNLOCK", 
+      "UNPAID", "UNREAL", "UNSEEN", 
+      
+      // 新增單詞 - V 
+      "VACANT", "VALLEY", "VICTOR", "VIOLET", "VIOLIN", 
+      "VISUAL", "VOLUME", "VOTING", "VOYAGE", 
+      
+      // 新增單詞 - W 
+      "WAITER", "WALKER", "WALLET", "WANDER", "WASHER", 
+      "WEAPON", "WEEKLY", "WEIGHT", "WINDOW", "WINTER", 
+      
+      // 新增單詞 - Y 
+      "YACHTS", "YANKED", "YARROW", "YEARLY", "YELLOW", 
+      "YEOMAN", "YIELDS", "YOGURT", "YONDER", "YOUTHS", 
+      "YUPPIE" 
+    ]
+
+    const dictionary = [
+      "ABET",
+      "ABLE",
+      "ABLY",
+      "ABUT",
+      "ACED",
+      "ACES",
+      "ACHE",
+      "ACHY",
+      "ACID",
+      "ACME",
+      "ACNE",
+      "ACRE",
+      "ACTS",
+      "ADDS",
+      "AFAR",
+      "AFRO",
+      "AGED",
+      "AGES",
+      "AGOG",
+      "AHEM",
+      "AHOY",
+      "AIDE",
+      "AILS",
+      "AIMS",
+      "AINT",
+      "AIRS",
+      "AIRY",
+      "AJAR",
+      "AKIN",
+      "ALAS",
+      "ALLY",
+      "ALMS",
+      "ALOE",
+      "ALSO",
+      "ALTO",
+      "ALUM",
+      "AMEN",
+      "AMID",
+      "AMMO",
+      "AMOK",
+      "AMPS",
+      "ANAL",
+      "ANEW",
+      "ANTE",
+      "ANTI",
+      "ANTS",
+      "APES",
+      "APEX",
+      "APPS",
+      "AQUA",
+      "ARCH",
+      "AREA",
+      "ARGH",
+      "ARID",
+      "ARMS",
+      "ARMY",
+      "ARTS",
+      "ARTY",
+      "ASAP",
+      "ASHY",
+      "ASKS",
+      "ATOM",
+      "ATOP",
+      "AUNT",
+      "AURA",
+      "AUTO",
+      "AVID",
+      "AVOW",
+      "AWAY",
+      "AWOL",
+      "AWRY",
+      "AXEL",
+      "AXES",
+      "AXIS",
+      "AXLE",
+      "BABE",
+      "BABY",
+      "BACH",
+      "BACK",
+      "BADE",
+      "BAGS",
+      "BAIL",
+      "BAIT",
+      "BAKE",
+      "BALD",
+      "BALE",
+      "BALK",
+      "BALL",
+      "BALM",
+      "BAND",
+      "BANE",
+      "BANG",
+      "BANK",
+      "BARB",
+      "BARD",
+      "BARE",
+      "BARF",
+      "BARK",
+      "BARN",
+      "BARS",
+      "BASE",
+      "BASH",
+      "BASK",
+      "BASS",
+      "BATH",
+      "BATS",
+      "BAYS",
+      "BEAD",
+      "BEAK",
+      "BEAM",
+      "BEAN",
+      "BEAR",
+      "BEAT",
+      "BEAU",
+      "BECK",
+      "BEDS",
+      "BEEF",
+      "BEEP",
+      "BEER",
+      "BEES",
+      "BEET",
+      "BEGS",
+      "BELL",
+      "BELT",
+      "BEND",
+      "BENT",
+      "BERM",
+      "BEST",
+      "BETA",
+      "BETS",
+      "BEVY",
+      "BIAS",
+      "BIDE",
+      "BIDS",
+      "BIKE",
+      "BILE",
+      "BILK",
+      "BILL",
+      "BIND",
+      "BING",
+      "BINS",
+      "BIRD",
+      "BITE",
+      "BITS",
+      "BLAB",
+      "BLAH",
+      "BLED",
+      "BLEW",
+      "BLIP",
+      "BLOB",
+      "BLOC",
+      "BLOT",
+      "BLOW",
+      "BLUE",
+      "BLUR",
+      "BOAR",
+      "BOAT",
+      "BODE",
+      "BODY",
+      "BOGS",
+      "BOIL",
+      "BOLD",
+      "BOLE",
+      "BOLO",
+      "BOLT",
+      "BOMB",
+      "BOND",
+      "BONE",
+      "BONG",
+      "BONK",
+      "BONY",
+      "BOOK",
+      "BOOM",
+      "BOON",
+      "BOOT",
+      "BORE",
+      "BORN",
+      "BOSS",
+      "BOTH",
+      "BOTS",
+      "BOUT",
+      "BOWL",
+      "BOWS",
+      "BOYS",
+      "BRAD",
+      "BRAG",
+      "BRAN",
+      "BRAS",
+      "BRAT",
+      "BRAY",
+      "BRED",
+      "BREW",
+      "BRIE",
+      "BRIG",
+      "BRIM",
+      "BROW",
+      "BUCK",
+      "BUDS",
+      "BUFF",
+      "BUGS",
+      "BULB",
+      "BULK",
+      "BULL",
+      "BUMP",
+      "BUNK",
+      "BUNS",
+      "BUNT",
+      "BUOY",
+      "BURG",
+      "BURN",
+      "BURP",
+      "BURY",
+      "BUSH",
+      "BUSY",
+      "BUTT",
+      "BUYS",
+      "BUZZ",
+      "BYTE",
+      "CABS",
+      "CAFE",
+      "CAGE",
+      "CAKE",
+      "CALF",
+      "CALL",
+      "CALM",
+      "CAME",
+      "CAMP",
+      "CANE",
+      "CANS",
+      "CANT",
+      "CAPE",
+      "CAPS",
+      "CARD",
+      "CARE",
+      "CARP",
+      "CARS",
+      "CART",
+      "CASE",
+      "CASH",
+      "CASK",
+      "CAST",
+      "CATS",
+      "CAVE",
+      "CEDE",
+      "CELL",
+      "CENT",
+      "CHAD",
+      "CHAP",
+      "CHAR",
+      "CHAT",
+      "CHEF",
+      "CHEW",
+      "CHIC",
+      "CHIN",
+      "CHIP",
+      "CHOP",
+      "CHOW",
+      "CHUG",
+      "CHUM",
+      "CITE",
+      "CITY",
+      "CLAD",
+      "CLAM",
+      "CLAN",
+      "CLAP",
+      "CLAW",
+      "CLAY",
+      "CLEF",
+      "CLIP",
+      "CLOD",
+      "CLOG",
+      "CLOT",
+      "CLUB",
+      "CLUE",
+      "COAL",
+      "COAT",
+      "COCK",
+      "CODE",
+      "COIL",
+      "COIN",
+      "COKE",
+      "COLA",
+      "COLD",
+      "COLT",
+      "COMA",
+      "COMB",
+      "COME",
+      "CONE",
+      "CONS",
+      "COOK",
+      "COOL",
+      "COOP",
+      "COPE",
+      "COPS",
+      "COPY",
+      "CORD",
+      "CORE",
+      "CORK",
+      "CORN",
+      "COST",
+      "COTS",
+      "COVE",
+      "COWL",
+      "COWS",
+      "CRAB",
+      "CRAG",
+      "CRAM",
+      "CRAP",
+      "CRAW",
+      "CRED",
+      "CREW",
+      "CRIB",
+      "CROP",
+      "CROW",
+      "CRUD",
+      "CRUX",
+      "CUBE",
+      "CUBS",
+      "CUED",
+      "CUES",
+      "CUFF",
+      "CULL",
+      "CULT",
+      "CUPS",
+      "CURB",
+      "CURE",
+      "CURL",
+      "CURT",
+      "CUTE",
+      "CUTS",
+      "CYST",
+      "DADS",
+      "DAFT",
+      "DALE",
+      "DAME",
+      "DAMN",
+      "DAMP",
+      "DANG",
+      "DANK",
+      "DARE",
+      "DARK",
+      "DARN",
+      "DART",
+      "DASH",
+      "DATA",
+      "DATE",
+      "DAWN",
+      "DAYS",
+      "DAZE",
+      "DEAD",
+      "DEAF",
+      "DEAL",
+      "DEAN",
+      "DEAR",
+      "DEBT",
+      "DECK",
+      "DEED",
+      "DEEM",
+      "DEEP",
+      "DEER",
+      "DEFT",
+      "DEFY",
+      "DELI",
+      "DELL",
+      "DEMO",
+      "DENS",
+      "DENT",
+      "DENY",
+      "DESK",
+      "DIAL",
+      "DIBS",
+      "DICE",
+      "DIED",
+      "DIES",
+      "DIET",
+      "DIGS",
+      "DIKE",
+      "DILL",
+      "DIME",
+      "DINE",
+      "DING",
+      "DINT",
+      "DIPS",
+      "DIRE",
+      "DIRT",
+      "DISC",
+      "DISH",
+      "DISK",
+      "DIVE",
+      "DOCK",
+      "DOCS",
+      "DOES",
+      "DOGS",
+      "DOLL",
+      "DOME",
+      "DONE",
+      "DONG",
+      "DOOM",
+      "DOOR",
+      "DOSE",
+      "DOTE",
+      "DOTS",
+      "DOVE",
+      "DOWN",
+      "DOZE",
+      "DRAB",
+      "DRAG",
+      "DRAW",
+      "DREW",
+      "DRIP",
+      "DROP",
+      "DRUM",
+      "DUAL",
+      "DUCK",
+      "DUCT",
+      "DUDE",
+      "DUEL",
+      "DUET",
+      "DUFF",
+      "DUKE",
+      "DULL",
+      "DUMB",
+      "DUMP",
+      "DUNE",
+      "DUNK",
+      "DUSK",
+      "DUST",
+      "DUTY",
+      "EACH",
+      "EARL",
+      "EARN",
+      "EARS",
+      "EASE",
+      "EAST",
+      "EASY",
+      "EATS",
+      "ECHO",
+      "EDGE",
+      "EDIT",
+      "EELS",
+      "EGGS",
+      "EGOS",
+      "ELSE",
+      "EMIT",
+      "ENDS",
+      "ENVY",
+      "EONS",
+      "EPIC",
+      "EVEN",
+      "EVER",
+      "EVIL",
+      "EXAM",
+      "EXIT",
+      "EYED",
+      "EYES",
+      "FACE",
+      "FACT",
+      "FADE",
+      "FAIL",
+      "FAIR",
+      "FAKE",
+      "FALL",
+      "FAME",
+      "FANG",
+      "FANS",
+      "FARE",
+      "FARM",
+      "FAST",
+      "FATE",
+      "FEAR",
+      "FEAT",
+      "FEED",
+      "FEEL",
+      "FEES",
+      "FEET",
+      "FELL",
+      "FELT",
+      "FEND",
+      "FERN",
+      "FEST",
+      "FIAT",
+      "FILE",
+      "FILL",
+      "FILM",
+      "FIND",
+      "FINE",
+      "FINS",
+      "FIRE",
+      "FIRM",
+      "FISH",
+      "FIST",
+      "FITS",
+      "FIVE",
+      "FLAG",
+      "FLAT",
+      "FLAW",
+      "FLEA",
+      "FLED",
+      "FLEE",
+      "FLEW",
+      "FLIP",
+      "FLOW",
+      "FLUX",
+      "FOAM",
+      "FOES",
+      "FOIL",
+      "FOLD",
+      "FOLK",
+      "FOND",
+      "FOOD",
+      "FOOL",
+      "FOOT",
+      "FORK",
+      "FORM",
+      "FORT",
+      "FOUR",
+      "FREE",
+      "FROG",
+      "FROM",
+      "FUEL",
+      "FULL",
+      "FUME",
+      "FUND",
+      "FUNK",
+      "FURY",
+      "FUSE",
+      "FUZZ",
+      "GAME",
+      "GAPS",
+      "GATE",
+      "GAVE",
+      "GAZE",
+      "GEAR",
+      "GEEK",
+      "GEMS",
+      "GENE",
+      "GENT",
+      "GETS",
+      "GIFT",
+      "GIRL",
+      "GIST",
+      "GIVE",
+      "GLAD",
+      "GLOW",
+      "GLUE",
+      "GOAL",
+      "GOAT",
+      "GOES",
+      "GOLD",
+      "GOLF",
+      "GONE",
+      "GONG",
+      "GOOD",
+      "GOOF",
+      "GOWN",
+      "GRAB",
+      "GRAY",
+      "GREW",
+      "GREY",
+      "GRID",
+      "GRIM",
+      "GRIN",
+      "GRIP",
+      "GROW",
+      "GULF",
+      "GULL",
+      "GUNS",
+      "GUSH",
+      "GUYS",
+      "HACK",
+      "HAIL",
+      "HAIR",
+      "HALF",
+      "HALL",
+      "HAND",
+      "HANG",
+      "HARD",
+      "HARE",
+      "HARM",
+      "HATE",
+      "HATS",
+      "HAVE",
+      "HEAD",
+      "HEAL",
+      "HEAR",
+      "HEAT",
+      "HEED",
+      "HEEL",
+      "HELL",
+      "HELP",
+      "HERB",
+      "HERE",
+      "HERO",
+      "HIDE",
+      "HIGH",
+      "HIKE",
+      "HILL",
+      "HINT",
+      "HIRE",
+      "HITS",
+      "HOLD",
+      "HOLE",
+      "HOME",
+      "HONE",
+      "HOOD",
+      "HOOK",
+      "HOPE",
+      "HORN",
+      "HOST",
+      "HOUR",
+      "HUGE",
+      "HUNG",
+      "HUNT",
+      "HURT",
+      "HUSH",
+      "HYMN",
+      "HYPE",
+      "ICON",
+      "IDEA",
+      "IDLE",
+      "IDOL",
+      "IFFY",
+      "INCH",
+      "INFO",
+      "INTO",
+      "IRON",
+      "ISLE",
+      "ITEM",
+      "JAZZ",
+      "JEEP",
+      "JERK",
+      "JEST",
+      "JIBE",
+      "JIGS",
+      "JINX",
+      "JOBS",
+      "JOIN",
+      "JOKE",
+      "JOLT",
+      "JUMP",
+      "JUNE",
+      "JURY",
+      "JUST",
+      "KEEP",
+      "KICK",
+      "KIDS",
+      "KILL",
+      "KIND",
+      "KING",
+      "KISS",
+      "KITE",
+      "KNEE",
+      "KNEW",
+      "KNIT",
+      "KNOT",
+      "KNOW",
+      "LABS",
+      "LACE",
+      "LACK",
+      "LADY",
+      "LAID",
+      "LAKE",
+      "LAMB",
+      "LAMP",
+      "LAND",
+      "LANE",
+      "LAST",
+      "LATE",
+      "LAZY",
+      "LEAD",
+      "LEAF",
+      "LEAK",
+      "LEAN",
+      "LEAP",
+      "LEFT",
+      "LEGS",
+      "LEND",
+      "LENS",
+      "LESS",
+      "LETS",
+      "LIFE",
+      "LIFT",
+      "LIKE",
+      "LILY",
+      "LIMB",
+      "LIME",
+      "LINE",
+      "LINK",
+      "LION",
+      "LIPS",
+      "LIST",
+      "LIVE",
+      "LOAD",
+      "LOAN",
+      "LOCK",
+      "LONG",
+      "LOOK",
+      "LOOP",
+      "LOSS",
+      "LOST",
+      "LOUD",
+      "LOVE",
+      "LUCK",
+      "LUNG",
+      "MAIL",
+      "MAIN",
+      "MAKE",
+      "MANY",
+      "MARK",
+      "MART",
+      "MATH",
+      "MEAL",
+      "MEAN",
+      "MEAT",
+      "MEET",
+      "MELT",
+      "MENU",
+      "MESS",
+      "MICE",
+      "MILD",
+      "MILE",
+      "MILK",
+      "MILL",
+      "MIND",
+      "MINE",
+      "MINI",
+      "MINT",
+      "MISS",
+      "MIST",
+      "MODE",
+      "MOON",
+      "MORE",
+      "MOST",
+      "MOVE",
+      "MUCH",
+      "MUST",
+      "NAME",
+      "NEAR",
+      "NECK",
+      "NEED",
+      "NEWS",
+      "NEXT",
+      "NICE",
+      "NOON",
+      "NOTE",
+      "OATH",
+      "OKAY",
+      "ONCE",
+      "ONLY",
+      "OPEN",
+      "OVER",
+      "PAGE",
+      "PAIN",
+      "PAIR",
+      "PALM",
+      "PARK",
+      "PART",
+      "PASS",
+      "PAST",
+      "PATH",
+      "PICK",
+      "PILL",
+      "PIPE",
+      "PLAN",
+      "PLAY",
+      "PLUS",
+      "POOL",
+      "POOR",
+      "PORT",
+      "POST",
+      "PULL",
+      "PURE",
+      "PUSH",
+      "RACE",
+      "RAIN",
+      "RANK",
+      "RATE",
+      "READ",
+      "REAL",
+      "REST",
+      "RICE",
+      "RICH",
+      "RIDE",
+      "RING",
+      "RISE",
+      "RISK",
+      "ROAD",
+      "ROCK",
+      "ROLE",
+      "ROLL",
+      "ROOM",
+      "ROOT",
+      "ROPE",
+      "ROSE",
+      "RULE",
+      "RUSH",
+      "SAFE",
+      "SAID",
+      "SAIL",
+      "SALE",
+      "SALT",
+      "SAME",
+      "SAND",
+      "SAVE",
+      "SEAT",
+      "SEED",
+      "SEEK",
+      "SEEM",
+      "SELL",
+      "SEND",
+      "SHIP",
+      "SHOE",
+      "SHOP",
+      "SHOT",
+      "SHOW",
+      "SHUT",
+      "SICK",
+      "SIDE",
+      "SIGN",
+      "SING",
+      "SINK",
+      "SITE",
+      "SIZE",
+      "SKIN",
+      "SLIP",
+      "SLOW",
+      "SNOW",
+      "SOAP",
+      "SOFT",
+      "SOIL",
+      "SOLD",
+      "SOME",
+      "SONG",
+      "SOON",
+      "SORT",
+      "SOUP",
+      "SPOT",
+      "STAR",
+      "STAY",
+      "STEP",
+      "STOP",
+      "SUCH",
+      "SUIT",
+      "SURE",
+      "TAKE",
+      "TALK",
+      "TALL",
+      "TANK",
+      "TAPE",
+      "TASK",
+      "TEAM",
+      "TEAR",
+      "TECH",
+      "TELL",
+      "TEND",
+      "TERM",
+      "TEST",
+      "TEXT",
+      "THAN",
+      "THAT",
+      "THEM",
+      "THEN",
+      "THEY",
+      "THIN",
+      "THIS",
+      "THUS",
+      "TIME",
+      "TIRE",
+      "TONE",
+      "TOOL",
+      "TOUR",
+      "TOWN",
+      "TREE",
+      "TRIP",
+      "TRUE",
+      "TURN",
+      "TYPE",
+      "UGLY",
+      "UNIT",
+      "UPON",
+      "USER",
+      "VARY",
+      "VAST",
+      "VERB",
+      "VERY",
+      "VIEW",
+      "VOTE",
+      "WAGE",
+      "WAIT",
+      "WALK",
+      "WALL",
+      "WANT",
+      "WARM",
+      "WARN",
+      "WASH",
+      "WAVE",
+      "WEAK",
+      "WEAR",
+      "WEEK",
+      "WELL",
+      "WEST",
+      "WHAT",
+      "WHEN",
+      "WHOM",
+      "WIDE",
+      "WIFE",
+      "WILD",
+      "WILL",
+      "WIND",
+      "WINE",
+      "WING",
+      "WIRE",
+      "WISE",
+      "WISH",
+      "WITH",
+      "WOOD",
+      "WORD",
+      "WORK",
+      "YARD",
+      "YEAR",
+      "YOUR",
+      "ZONE",
+      "ZOOM",
+      // 困难模式 6 字母单词
+      "ABSORB", "ACCEPT", "ACCESS", "ACCENT", "ACCORD", "ACCUSE", "ACTIVE", "ACTUAL", "ADHERE", "ADJUST",
+      "ADMIRE", "ADVICE", "AFFECT", "AFFORD", "AGENCY", "AGENDA", "ALLEGE", "AMOUNT", "ANNUAL", "APPEAR",
+      "ASPECT", "ASSESS", "ASSIGN", "ASSIST", "ASSUME", "ASSURE", "ATTACH", "ATTEND", "AUTHOR", "BEHALF",
+      "BEHAVE", "BELIEF", "BELONG", "BENIGN", "BEYOND", "BINARY", "BORDER", "BORROW", "BRANCH", "BREACH",
+      "BRIDGE", "BUDGET", "BURDEN", "BUREAU", "CAMPUS", "CANCER", "CARBON", "CAREER", "CASUAL", "CENSUS",
+      "CHARGE", "CHOICE", "CHORUS", "CIRCLE", "CLIENT", "CLINIC", "COLUMN", "COMBAT", "COMMIT", "COMMON",
+      "COMPLY", "CONVEY", "CORPUS", "COUPLE", "DAMAGE", "DANGER", "DEBATE", "DECADE", "DECENT", "DECIDE",
+      "DECREE", "DEDUCE", "DEFEAT", "DEFECT", "DEFEND", "DEFINE", "DEGREE", "DELETE", "DEPEND", "DEPICT",
+      "DEPLOY", "DERIVE", "DESERT", "DESIGN", "DESIRE", "DETAIL", "DETECT", "DEVICE", "DEVISE", "DEVOTE",
+      "DIFFER", "DIGEST", "DIRECT", "DOMAIN", "DONATE", "DOSAGE", "DOUBLE", "DRIVEN", "DURING", "EMERGE",
+      "EMPIRE", "EMPLOY", "ENABLE", "ENERGY", "ENGAGE", "ENGINE", "ENIGMA", "ENOUGH", "ENRICH", "ENROLL",
+      "ENSURE", "ENTAIL", "ENTIRE", "ENTITY", "EQUITY", "ESCAPE", "ESTATE", "ETHICS", "ETHNIC", "EVOLVE",
+      "EXCEED", "EXCEPT", "EXCESS", "EXCITE", "EXPOSE", "EXTEND", "EXTENT", "FABRIC", "FACADE", "FACIAL",
+      "FACTOR", "FAILED", "FAMILY", "FAMOUS", "FAVOUR", "FELLOW", "FEMALE", "FIERCE", "FIGURE", "FILTER",
+      "FISCAL", "FLIGHT", "GALAXY", "GATHER", "GENDER", "GENTLE", "GLANCE", "GLOBAL", "GOVERN", "GROUND",
+      "GROWTH", "GUILTY", "HABITS", "HANDLE", "HAPPEN", "HARBOR", "HARDLY", "HAZARD", "HEALTH", "HIGHLY",
+      "HOLLOW", "HONEST", "HONOUR", "HUMBLE", "HUNGER", "HYBRID", "IGNORE", "IMMUNE", "IMPACT", "IMPORT",
+      "IMPOSE", "INCOME", "INDUCE", "INFANT", "INFECT", "INFORM", "INJURY", "INLAND", "INNATE", "INSECT",
+      "INSERT", "INSIDE", "INSIST", "INTACT", "INTAKE", "INTEND", "INVEST", "INVITE", "ISLAND", "ITALIC",
+      "JARGON", "JUNIOR", "KERNEL", "KETTLE", "KEYPAD", "KINDLY", "LABOUR", "LATEST", "LAUNCH", "LAWYER",
+
+      // ========================================== 
+      // 以下為新增的 6 字母單詞（已修復長度與整齊排版） 
+      // ========================================== 
+      
+      // 新增單詞 - A 
+      "ALWAYS", "ANSWER", "ARTIST", "AUTUMN", "AVENUE", 
+      
+      // 新增單詞 - B 
+      "BANANA", "BASKET", "BATTLE", "BEAUTY", "BECAME", 
+      "BEFORE", "BEHIND", "BETTER", "BOTTLE", "BOTTOM", 
+      "BOUNCE", "BRIGHT", "BURGER", 
+      
+      // 新增單詞 - C 
+      "CAMERA", "CANDLE", "CANNOT", "CARROT", "CENTRE", 
+      "CHANCE", "CHANGE", "CHEESE", "COFFEE", "COUPLE", 
+      
+      // 新增單詞 - D 
+      "DANCER", "DEADLY", "DEMAND", "DINNER", "DOCTOR", 
+      "DOLLAR", 
+      
+      // 新增單詞 - E 
+      "EFFORT", "EITHER", "ELEVEN", "EXPERT", "EXPORT", 
+      
+      // 新增單詞 - F 
+      "FATHER", "FINGER", "FINISH", "FLOWER", "FOLLOW", 
+      "FOREST", "FRIEND", 
+      
+      // 新增單詞 - G 
+      "GARAGE", "GARDEN", "GENIUS", "GERMAN", "GOLDEN", 
+      "GOSSIP", "GUITAR", 
+      
+      // 新增單詞 - H 
+      "HAMMER", "HEAVEN", "HEIGHT", "HELMET", "HEROIC", 
+      "HIDDEN", "HUNTER", 
+      
+      // 新增單詞 - I 
+      "IGNITE", "INDEED", "INDOOR", "INJECT", "INVENT", 
+      
+      // 新增單詞 - J 
+      "JACKET", "JAILOR", "JAMMED", "JAUNTY", "JERSEY", 
+      "JEWELS", "JIGGLE", "JIGSAW", "JINGLE", "JOCKEY", 
+      "JOINED", "JUMPER", "JUNGLE", 
+      
+      // 新增單詞 - K 
+      "KEEPER", "KENNEL", "KICKED", "KICKER", "KILLER", 
+      "KINGLY", "KITTEN", "KNIGHT", "KNOWER", 
+      
+      // 新增單詞 - L 
+      "LADDER", "LASTING", "LEADER", "LEAGUE", "LEGACY", 
+      "LEGEND", "LEISURE", "LENGTH", "LESSON", "LETTER", 
+      "LITTLE", "LIZARD", "LOCKED", 
+      
+      // 新增單詞 - M 
+      "MAGNET", "MAINLY", "MAMMAL", "MANAGE", "MANNER", 
+      "MANUAL", "MARKET", "MASTER", "MATTER", "MEDIUM", 
+      "MEMBER", "MEMORY", 
+      
+      // 新增單詞 - N 
+      "NARROW", "NATION", "NATIVE", "NATURE", "NEARLY", 
+      "NEEDLE", "NEPHEW", "NOBODY", "NORMAL", "NOTICE", 
+      "NUMBER", "NUTMEG", 
+      
+      // 新增單詞 - O 
+      "OBJECT", "OBTAIN", "OFFICE", "ONLINE", "OPENED", 
+      "ORANGE", "ORIGIN", "ORPHAN", "OUTFIT", "OUTLAW", 
+      "OUTPUT", "OXYGEN", 
+      
+      // 新增單詞 - P 
+      "PACKET", "PALACE", "PARENT", "PARROT", "PAYING", 
+      "PEOPLE", "PEPPER", "PERIOD", "PERSON", "PLANET", 
+      "PLEASE", "PURPLE", 
+      
+      // 新增單詞 - Q 
+      "QUAINT", "QUAKER", "QUARKS", "QUARRY", "QUARTZ", 
+      "QUENCH", "QUINCE", "QUIRKY", "QUIVER", "QUORUM", 
+      "QUOTAS", "QUOTED", 
+      
+      // 新增單詞 - R 
+      "RABBIT", "RADISH", "RADIUS", "RANDOM", "RARELY", 
+      "RATHER", "READER", "REALLY", "REASON", "RECENT", 
+      "RECORD", "REDUCE", 
+      
+      // 新增單詞 - T 
+      "TABLET", "TACKLE", "TALENT", "TATTOO", "TEMPLE", 
+      "TENNIS", "THANKS", "THIRST", "THIRTY", 
+      
+      // 新增單詞 - U 
+      "UNABLE", "UNFAIR", "UNIQUE", "UNJUST", "UNLOCK", 
+      "UNPAID", "UNREAL", "UNSEEN", 
+      
+      // 新增單詞 - V 
+      "VACANT", "VALLEY", "VICTOR", "VIOLET", "VIOLIN", 
+      "VISUAL", "VOLUME", "VOTING", "VOYAGE", 
+      
+      // 新增單詞 - W 
+      "WAITER", "WALKER", "WALLET", "WANDER", "WASHER", 
+      "WEAPON", "WEEKLY", "WEIGHT", "WINDOW", "WINTER", 
+      
+      // 新增單詞 - Y 
+      "YACHTS", "YANKED", "YARROW", "YEARLY", "YELLOW", 
+      "YEOMAN", "YIELDS", "YOGURT", "YONDER", "YOUTHS", 
+      "YUPPIE" 
+    ]
+
+    // DOM 元素
+    let keyboard, alertContainer, guessGrid
+    let currentTargetWord = ""
+    let currentLevelId = ""
+    let correctLetters = {} // 追踪已答对的字母及其位置 {letter: [positions]}
+    let currentGameId = 0 // 追踪当前游戏会话 ID，防止过期回调影响新游戏
+
+    const LS_EASY_MAX = 'wordle_arcane_easyMax'
+    const LS_HARD_MAX = 'wordle_arcane_hardMax'
+    const LEVEL_META = {
+      easy1: { difficulty: 'easy', stage: 1 },
+      easy2: { difficulty: 'easy', stage: 2 },
+      easy3: { difficulty: 'easy', stage: 3 },
+      hard1: { difficulty: 'hard', stage: 1 },
+      hard2: { difficulty: 'hard', stage: 2 },
+      hard3: { difficulty: 'hard', stage: 3 }
+    }
+
+    function getEasyMaxCleared() {
+      const n = parseInt(localStorage.getItem(LS_EASY_MAX) || '0', 10)
+      return Number.isFinite(n) ? n : 0
+    }
+    function setEasyMaxCleared(n) {
+      localStorage.setItem(LS_EASY_MAX, String(Math.max(0, Math.min(3, n))))
+    }
+    function getHardMaxCleared() {
+      const n = parseInt(localStorage.getItem(LS_HARD_MAX) || '0', 10)
+      return Number.isFinite(n) ? n : 0
+    }
+    function setHardMaxCleared(n) {
+      localStorage.setItem(LS_HARD_MAX, String(Math.max(0, Math.min(3, n))))
+    }
+
+    function isStageUnlocked(difficulty, stage) {
+      if (stage <= 1) return true
+      const max = difficulty === 'easy' ? getEasyMaxCleared() : getHardMaxCleared()
+      return max >= stage - 1
+    }
+
+    function refreshLevelLockUI() {
+      document.querySelectorAll('.level-btn[data-difficulty][data-stage]').forEach(el => {
+        const d = el.getAttribute('data-difficulty')
+        const stage = parseInt(el.getAttribute('data-stage'), 10)
+        const locked = !isStageUnlocked(d, stage)
+        el.classList.toggle('locked', locked)
+        el.setAttribute('aria-disabled', locked ? 'true' : 'false')
+      })
+    }
+
+    function tryStartLevel(levelId) {
+      const meta = LEVEL_META[levelId]
+      if (meta && !isStageUnlocked(meta.difficulty, meta.stage)) {
+        showAlert('Please complete the previous level first', 2200)
+        return
+      }
+      startLevel(levelId)
+    }
+
+    function recordVictoryForProgress(levelId) {
+      const meta = LEVEL_META[levelId]
+      if (!meta) return
+      if (meta.difficulty === 'easy') {
+        setEasyMaxCleared(Math.max(getEasyMaxCleared(), meta.stage))
+      } else {
+        setHardMaxCleared(Math.max(getHardMaxCleared(), meta.stage))
+      }
+    }
+
+    // ==================== 新增：全局导航函数 ====================
+    function beginGame() {
+      if (!welcomePlayed) { welcomePlayed = true; playWelcome() }
+      const startScreen = document.getElementById('start-screen')
+      startScreen.style.transition = 'opacity 0.7s ease'
+      startScreen.style.opacity = '0'
+      setTimeout(() => {
+        startScreen.style.display = 'none'
+        document.getElementById('mode-screen').style.display = 'flex'
+      }, 720)
+    }
+
+    function selectDeveloperMode() {
+      document.getElementById('mode-screen').style.display = 'none'
+      document.getElementById('login-screen').style.display = 'flex'
+    }
+
+    function selectVisitorMode() {
+      document.getElementById('mode-screen').style.display = 'none'
+      document.getElementById('difficulty-screen').style.display = 'flex'
+    }
+
+    function backToModeFromLogin() {
+      document.getElementById('login-screen').style.display = 'none'
+      document.getElementById('mode-screen').style.display = 'flex'
+    }
+
+    function attemptLogin() {
+      const username = document.getElementById('username-input').value.trim()
+      const password = document.getElementById('password-input').value.trim()
+      // 唯一指定的账号密码（严格匹配）
+      if (username === "12345678" && password === "88888888") {
+        document.getElementById('login-screen').style.display = 'none'
+        // 开发者模式：直接进入 6x6 游戏，显示答案
+        startDeveloperMode()
+      } else {
+        showAlert("Invalid username or password!", 2000)
+      }
+    }
+
+    function backToModeFromDifficulty() {
+      document.getElementById('difficulty-screen').style.display = 'none'
+      document.getElementById('mode-screen').style.display = 'flex'
+    }
+
+    function selectEasy() {
+      document.getElementById('difficulty-screen').style.display = 'none'
+      document.getElementById('easy-levels-screen').style.display = 'flex'
+      refreshLevelLockUI()
+    }
+
+    function selectHard() {
+      document.getElementById('difficulty-screen').style.display = 'none'
+      document.getElementById('hard-levels-screen').style.display = 'flex'
+      refreshLevelLockUI()
+    }
+
+    function backToDifficulty() {
+      document.getElementById('easy-levels-screen').style.display = 'none'
+      document.getElementById('hard-levels-screen').style.display = 'none'
+      document.getElementById('difficulty-screen').style.display = 'flex'
+      refreshLevelLockUI()
+    }
+
+    // 开发者模式：直接进入 6x6 游戏并显示答案
+    function startDeveloperMode() {
+      // 隐藏所有菜单
+      document.querySelectorAll('.screen').forEach(s => { s.style.display = 'none' })
+      // 显示游戏容器
+      document.querySelector('.game-container').style.display = 'flex'
+      // 显示开发者提示面板
+      document.getElementById('developer-hint-panel').style.display = 'block'
+
+      // 设置为 6x6 模式
+      window.currentWordLength = 6
+      window.currentMaxGuesses = 6
+      currentLevelId = 'developer'
+
+      const guessGridEl = document.querySelector('[data-guess-grid]')
+      guessGridEl.style.display = 'grid'
+      guessGridEl.classList.add('hard')
+
+      document.querySelector('[data-keyboard]').style.display = 'flex'
+
+      // 初始化游戏
+      initializeGame()
+
+      // 显示答案
+      updateDeveloperHint()
+
+      console.log(`🔧 开发者模式已启动（当前目标词：${currentTargetWord}）`)
+    }
+
+    function updateDeveloperHint() {
+      const answerDiv = document.getElementById('developer-answer')
+      if (answerDiv && currentTargetWord) {
+        // 将答案字母用空格分开显示
+        answerDiv.textContent = currentTargetWord.split('').join(' ')
+      }
+    }
+
+    // 进入具体关卡 → 启动游戏
+    function startLevel(level) {
+      currentLevelId = level
+      const meta = LEVEL_META[level]
+      const isHard = meta && meta.difficulty === 'hard'
+
+      // 设置难度参数
+      window.currentWordLength = isHard ? 6 : 4
+      window.currentMaxGuesses = isHard ? 6 : 4
+
+      // 隐藏所有菜单
+      document.querySelectorAll('.screen').forEach(s => { s.style.display = 'none' })
+      // 显示游戏容器
+      document.querySelector('.game-container').style.display = 'flex'
+
+      const guessGridEl = document.querySelector('[data-guess-grid]')
+      guessGridEl.style.display = 'grid'
+
+      // 根据难度设置网格样式
+      if (isHard) {
+        guessGridEl.classList.add('hard')
+      } else {
+        guessGridEl.classList.remove('hard')
+      }
+
+      document.querySelector('[data-keyboard]').style.display = 'flex'
+
+      // 初始化/重置游戏（每次关卡都使用全新随机词）
+      initializeGame()
+      console.log(`✅ 已进入关卡：${level}（当前目标词：${currentTargetWord}）`)
+    }
+
+    // ==================== 游戏初始化函数（每次关卡调用） ====================
+    /** 標準 Wordle 計分：先標綠，剩餘字母數再標黃 */
+    function scoreWordleGuess(target, guess) {
+      const n = window.currentWordLength || WORD_LENGTH
+      const out = Array(n).fill('absent')
+      const t = target.split('')
+      const g = guess.split('')
+      const counts = {}
+      for (const ch of t) counts[ch] = (counts[ch] || 0) + 1
+      for (let i = 0; i < n; i++) {
+        if (g[i] === t[i]) {
+          out[i] = 'correct'
+          counts[g[i]]--
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        if (out[i] === 'correct') continue
+        const ch = g[i]
+        if (counts[ch] > 0) {
+          out[i] = 'present'
+          counts[ch]--
+        }
+      }
+      return out
+    }
+
+    function updateKeyFromResult(letter, state) {
+      const keyEl = keyboard.querySelector(`[data-key="${letter}"i]`)
+      if (!keyEl || !keyEl.dataset.key) return
+      if (state === 'correct') {
+        keyEl.classList.remove('wrong-location', 'wrong')
+        keyEl.classList.add('correct')
+      } else if (state === 'present') {
+        if (!keyEl.classList.contains('correct')) {
+          keyEl.classList.add('wrong-location')
+        }
+      }
+    }
+
+    function initializeGame() {
+      // 停止所有交互，清除所有事件监听器
+      stopInteraction();
+      
+      // 更新游戏 ID，使旧的回调函数失效
+      currentGameId++;
+      
+      // 根据当前关卡难度选择单词列表
+      const meta = LEVEL_META[currentLevelId];
+      const isHard = meta && meta.difficulty === 'hard';
+      const isDeveloper = currentLevelId === 'developer';
+      
+      // 强制同步全局参数，防止渲染错误
+      window.currentWordLength = (isDeveloper || isHard) ? 6 : 4;
+      window.currentMaxGuesses = (isDeveloper || isHard) ? 6 : 4;
+      
+      const wordLen = window.currentWordLength;
+      const maxGuesses = window.currentMaxGuesses;
+      
+      const wordList = isDeveloper || isHard ? targetWordsHard : targetWordsEasy;
+      currentTargetWord = wordList[Math.floor(Math.random() * wordList.length)];
+      console.log("🎯 新目标词:", currentTargetWord, "Game Session:", currentGameId);
+
+      // 重置已答对字母追踪
+      correctLetters = {};
+
+      // 动态生成网格
+      guessGrid.innerHTML = '';
+      
+      // 确保网格样式类与难度匹配
+      if (wordLen === 6) {
+        guessGrid.classList.add('hard');
+      } else {
+        guessGrid.classList.remove('hard');
+      }
+
+      for (let i = 0; i < wordLen * maxGuesses; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        guessGrid.appendChild(tile);
+      }
+
+      if (keyboard) {
+        keyboard.querySelectorAll('.key[data-key]').forEach(k => {
+          k.classList.remove('correct', 'wrong-location', 'wrong');
+        });
+      }
+
+      // 重置并更新右侧显示
+      updateCorrectLettersDisplay();
+
+      // 如果是开发者模式，更新答案提示
+      if (isDeveloper) {
+        updateDeveloperHint();
+      }
+
+      // 重新开始交互
+      startInteraction();
+    }
+
+    // ==================== 原有交互逻辑（仅做少量适配） ====================
+    function startInteraction() {
+      // 移除旧监听器，防止重复添加
+      document.removeEventListener("click", handleMouseClick);
+      document.removeEventListener("keydown", handleKeyPress);
+      
+      document.addEventListener("click", handleMouseClick);
+      document.addEventListener("keydown", handleKeyPress);
+    }
+
+    function stopInteraction() {
+      document.removeEventListener("click", handleMouseClick);
+      document.removeEventListener("keydown", handleKeyPress);
+    }
+
+    function handleMouseClick(e) {
+      // 防止在游戏结束或暂停时点击
+      if (document.getElementById('game-over-screen').style.display === 'flex') return;
+
+      if (e.target.closest("[data-key]")) { 
+        pressKey(e.target.closest("[data-key]").dataset.key); 
+        return; 
+      }
+      if (e.target.closest("[data-enter]")) { 
+        submitGuess(); 
+        return; 
+      }
+      if (e.target.closest("[data-delete]")) { 
+        deleteKey(); 
+        return; 
+      }
+    }
+
+    function handleKeyPress(e) {
+      // 防止在游戏结束或暂停时输入
+      if (document.getElementById('game-over-screen').style.display === 'flex') return;
+      
+      if (e.key === "Enter") { submitGuess(); return }
+      if (e.key === "Backspace" || e.key === "Delete") { deleteKey(); return }
+      if (e.key.match(/^[a-z]$/i)) { pressKey(e.key); return }
+    }
+
+    function pressKey(key) {
+      const activeTiles = getActiveTiles();
+      const wordLen = window.currentWordLength || 4;
+      if (activeTiles.length >= wordLen) return;
+      
+      playKeyClick();
+      // 查找第一个没有 data-letter 且没有 data-state 的瓷砖（即当前正在输入的行的下一个空瓷砖）
+      const nextTile = Array.from(guessGrid.querySelectorAll(".tile")).find(tile => !tile.dataset.letter);
+      
+      if (!nextTile) {
+        console.error("❌ 找不到可用的瓷磚！");
+        return;
+      }
+      
+      const keyUpper = key.toUpperCase();
+      nextTile.dataset.letter = keyUpper;
+      nextTile.textContent = keyUpper;
+      nextTile.dataset.state = "active";
+    }
+
+    function deleteKey() {
+      const activeTiles = getActiveTiles();
+      if (activeTiles.length === 0) return;
+      
+      const lastTile = activeTiles[activeTiles.length - 1];
+      lastTile.textContent = "";
+      delete lastTile.dataset.state;
+      delete lastTile.dataset.letter;
+    }
+
+    function submitGuess() {
+      const activeTiles = [...getActiveTiles()]
+      const wordLen = window.currentWordLength || WORD_LENGTH
+      if (activeTiles.length !== wordLen) {
+        showAlert("Not enough letters")
+        shakeTiles(activeTiles)
+        return
+      }
+      const guess = activeTiles.reduce((word, tile) => word + tile.dataset.letter, "")
+      if (!dictionary.includes(guess)) {
+        showAlert("Not in word list")
+        shakeTiles(activeTiles)
+        return
+      }
+      const scores = scoreWordleGuess(currentTargetWord, guess)
+      stopInteraction()
+      activeTiles.forEach((tile, index, array) => flipTile(tile, index, array, guess, scores))
+    }
+
+    function flipTile(tile, index, array, guess, scores) {
+      const letter = tile.dataset.letter
+      const st = scores[index]
+      
+      // 記錄當前的 gameSessionId
+      const sessionAtStart = currentGameId;
+
+      setTimeout(() => {
+        // 如果 session 已變，不再執行
+        if (currentGameId !== sessionAtStart) return;
+        
+        // 🐛 修正：將事件監聽器移入 setTimeout 內，並過濾掉非 transform 的動畫事件
+        const handleTransitionEnd = (e) => {
+          // 確保只攔截翻轉 (transform) 動畫，避免被輸入字母時的邊框顏色動畫提前觸發
+          if (e.propertyName !== 'transform') return;
+          
+          // 確定是翻轉動畫結束後，立刻移除監聽器
+          tile.removeEventListener("transitionend", handleTransitionEnd);
+
+          // 如果 session 已變，或者 tile 已經不在 DOM 中，則不執行邏輯
+          if (currentGameId !== sessionAtStart || !tile.parentElement) return;
+
+          tile.classList.remove("flip")
+          if (st === 'correct') {
+            tile.dataset.state = "correct"
+            // 追蹤已答對的字母及其位置
+            if (!correctLetters[letter]) {
+              correctLetters[letter] = []
+            }
+            if (!correctLetters[letter].includes(index)) {
+              correctLetters[letter].push(index)
+            }
+            updateCorrectLettersDisplay()
+          } else if (st === 'present') {
+            tile.dataset.state = "wrong-location"
+          } else {
+            tile.dataset.state = "absent"
+          }
+          updateKeyFromResult(letter, st)
+
+          // 檢查是否所有瓷磚都已完成翻轉
+          if (index === array.length - 1) {
+            // 所有瓷磚翻轉完成，延遲後檢查遊戲狀態
+            setTimeout(() => {
+              // 再次驗證 session
+              if (currentGameId !== sessionAtStart) return;
+
+              const isGameOver = checkWinLose(guess, array)
+              if (!isGameOver) {
+                startInteraction()
+              }
+            }, FLIP_ANIMATION_DURATION / 2)
+          }
+        };
+
+        // 掛載過濾後的專屬監聽器，然後才開始加上翻轉 class
+        tile.addEventListener("transitionend", handleTransitionEnd);
+        tile.classList.add("flip");
+        
+      }, (index * FLIP_ANIMATION_DURATION) / 2)
+    }
+
+    function updateCorrectLettersDisplay() {
+      const container = document.getElementById('correct-letters-container')
+      let noLettersMsg = document.getElementById('no-correct-letters')
+
+      // 🐛 修正 1：如果上一關因為清空容器導致提示元素丟失，重新創建它
+      if (!noLettersMsg) {
+        noLettersMsg = document.createElement('p')
+        noLettersMsg.id = 'no-correct-letters'
+        noLettersMsg.style.fontFamily = "'Courier New', monospace"
+        noLettersMsg.style.fontSize = '0.95rem'
+        noLettersMsg.style.color = '#8a7a5c'
+        noLettersMsg.style.textAlign = 'center'
+        noLettersMsg.style.padding = '2rem 0'
+        noLettersMsg.innerHTML = 'No letters found yet.<br>Guess words to find letters!'
+      }
+
+      const letters = Object.keys(correctLetters)
+
+      if (letters.length === 0) {
+        // 顯示"暫無字母"提示
+        noLettersMsg.style.display = 'block'
+        container.innerHTML = ''
+        container.appendChild(noLettersMsg)
+        return
+      }
+
+      // 隱藏"暫無字母"提示
+      noLettersMsg.style.display = 'none'
+
+      // 清除現有內容
+      container.innerHTML = ''
+
+      // 🐛 修正 2：即使隱藏了，也要把它加回容器中，保證下一個關卡還能找到它
+      container.appendChild(noLettersMsg)
+
+      // 根據當前難度獲取單詞列表
+      const meta = LEVEL_META[currentLevelId]
+      const isDeveloper = currentLevelId === 'developer'
+      const isHard = isDeveloper || (meta && meta.difficulty === 'hard')
+      const wordList = isHard ? targetWordsHard : targetWordsEasy
+
+      // 篩選在對應位置包含已答對字母的單詞
+      const matchingWords = wordList.filter(word => {
+        // 檢查每個已答對的字母及其位置
+        for (const letter of letters) {
+          const positions = correctLetters[letter]
+          // 單詞必須在所有這些位置都包含該字母
+          for (const pos of positions) {
+            if (word[pos] !== letter) {
+              return false
+            }
+          }
+        }
+        return true
+      })
+
+      // 顯示標題
+      const titleDiv = document.createElement('div')
+      titleDiv.style.fontFamily = "'Courier New', monospace"
+      titleDiv.style.fontSize = '0.9rem'
+      titleDiv.style.color = '#c9a84c'
+      titleDiv.style.marginBottom = '1rem'
+      titleDiv.style.textAlign = 'center'
+
+      // 構建位置信息字符串
+      const positionInfo = letters.map(letter => {
+        const positions = correctLetters[letter].map(p => p + 1).join(',')
+        return `${letter}(pos ${positions})`
+      })
+      titleDiv.textContent = `Possible words matching confirmed positions (${matchingWords.length}):`
+      container.appendChild(titleDiv)
+
+      // 顯示匹配的單詞列表
+      const wordsContainer = document.createElement('div')
+      wordsContainer.style.display = 'flex'
+      wordsContainer.style.flexDirection = 'column'
+      wordsContainer.style.gap = '0.5rem'
+      wordsContainer.style.maxHeight = '400px'
+      wordsContainer.style.overflowY = 'auto'
+      wordsContainer.style.padding = '0.5rem'
+      wordsContainer.style.border = '1px solid rgba(210,155,40,0.3)'
+      wordsContainer.style.borderRadius = '5px'
+      wordsContainer.style.backgroundColor = 'rgba(20,10,5,0.3)'
+
+      matchingWords.forEach(word => {
+        const wordDiv = document.createElement('div')
+        wordDiv.style.display = 'flex'
+        wordDiv.style.alignItems = 'center'
+        wordDiv.style.gap = '8px'
+        wordDiv.style.padding = '0.5rem'
+        wordDiv.style.backgroundColor = 'rgba(255,255,255,0.05)'
+        wordDiv.style.borderRadius = '4px'
+
+        // 高亮顯示已知的字母
+        const wordSpan = document.createElement('span')
+        wordSpan.style.fontFamily = "'Courier New', monospace"
+        wordSpan.style.fontSize = '1.1rem'
+        wordSpan.style.color = '#f5d97a'
+        wordSpan.style.fontWeight = 'bold'
+        wordSpan.style.letterSpacing = '0.2em'
+
+        // 將單詞中的已知字母高亮顯示
+        let wordHTML = ''
+        for (let i = 0; i < word.length; i++) {
+          const char = word[i]
+          // 檢查這個位置的字母是否已確認
+          const isConfirmed = correctLetters[char] && correctLetters[char].includes(i)
+          if (isConfirmed) {
+            wordHTML += `<span style="color: hsl(115, 29%, 43%); text-shadow: 0 0 5px rgba(100,200,100,0.5);">${char}</span>`
+          } else {
+            wordHTML += `<span style="color: #8a7a5c;">${char}</span>`
+          }
+        }
+        wordSpan.innerHTML = wordHTML
+
+        wordDiv.appendChild(wordSpan)
+        wordsContainer.appendChild(wordDiv)
+      })
+
+      container.appendChild(wordsContainer)
+    }
+
+    function getActiveTiles() {
+      return guessGrid.querySelectorAll('[data-state="active"]')
+    }
+
+    function showAlert(message, duration = 1000) {
+      const alert = document.createElement("div")
+      alert.textContent = message
+      alert.classList.add("alert")
+      alertContainer.prepend(alert)
+      if (duration) {
+        setTimeout(() => {
+          alert.classList.add("hide")
+          alert.addEventListener("transitionend", () => alert.remove())
+        }, duration)
+      }
+    }
+
+    function shakeTiles(tiles) {
+      tiles.forEach(tile => {
+        tile.classList.add("shake")
+        tile.addEventListener("animationend", () => tile.classList.remove("shake"), { once: true })
+      })
+    }
+
+    function checkWinLose(guess, tiles) {
+      if (guess === currentTargetWord) {
+        playWin()
+        danceTiles(tiles)
+        recordVictoryForProgress(currentLevelId)
+        // 游戏结束，停止交互
+        stopInteraction();
+        showGameOverScreen(true)
+        return true
+      }
+      
+      const wordLen = window.currentWordLength || 4;
+      const maxGuesses = window.currentMaxGuesses || 4;
+      const totalTiles = wordLen * maxGuesses;
+      const filledTiles = guessGrid.querySelectorAll("[data-letter]").length;
+      
+      if (filledTiles >= totalTiles) {
+        playLose()
+        // 游戏结束，停止交互
+        stopInteraction();
+        showGameOverScreen(false)
+        return true
+      }
+      // 遊戲繼續，不需要停止交互
+      return false
+    }
+
+    function showGameOverScreen(isWin) {
+      const screen = document.getElementById('game-over-screen')
+      const title = document.getElementById('game-over-title')
+      const message = document.getElementById('game-over-message')
+      const buttons = document.getElementById('game-over-buttons')
+
+      const isDeveloper = currentLevelId === 'developer'
+
+      if (isWin) {
+        title.textContent = 'Congratulations!'
+        title.style.color = '#f5d97a'
+        title.style.textShadow = '0 0 20px rgba(255,180,40,0.9)'
+        message.textContent = `The word was: ${currentTargetWord}`
+
+        if (isDeveloper) {
+          // 开发者模式：只显示返回模式选择
+          buttons.innerHTML = `
+            <button class="big-btn" onclick="backToModeSelect()">Back to Modes</button>
+          `
+        } else {
+          const meta = LEVEL_META[currentLevelId]
+          const isHard = meta && meta.difficulty === 'hard'
+          const nextStage = meta ? meta.stage + 1 : 2
+          const nextLevelId = isHard ? `hard${nextStage}` : `easy${nextStage}`
+          const hasLevel = nextStage <= 3
+
+          buttons.innerHTML = `
+            <button class="big-btn" onclick="goToNextLevel('${nextLevelId}')" ${hasLevel ? '' : 'style="display:none;"'}>Next Level</button>
+            <button class="big-btn" onclick="backToLevelSelect()">Back to Levels</button>
+          `
+        }
+      } else {
+        title.textContent = 'Game Over'
+        title.style.color = '#c9a84c'
+        title.style.textShadow = '0 0 20px rgba(180,100,40,0.9)'
+        message.textContent = `The word was: ${currentTargetWord}`
+
+        buttons.innerHTML = `
+          <button class="big-btn" onclick="restartLevel()">Retry</button>
+          <button class="big-btn" onclick="backToLevelSelect()">Back to Levels</button>
+        `
+      }
+
+      screen.style.display = 'flex'
+    }
+
+    function backToModeSelect() {
+      document.getElementById('game-over-screen').style.display = 'none'
+      document.querySelector('.game-container').style.display = 'none'
+      document.getElementById('developer-hint-panel').style.display = 'none'
+      document.getElementById('mode-screen').style.display = 'flex'
+    }
+
+    function goToNextLevel(nextLevelId) {
+      document.getElementById('game-over-screen').style.display = 'none'
+      startLevel(nextLevelId)
+    }
+
+    function restartLevel() {
+      document.getElementById('game-over-screen').style.display = 'none'
+      startLevel(currentLevelId)
+    }
+
+    function backToLevelSelect() {
+      document.getElementById('game-over-screen').style.display = 'none'
+      document.querySelector('.game-container').style.display = 'none'
+      const meta = LEVEL_META[currentLevelId]
+      if (meta && meta.difficulty === 'hard') {
+        document.getElementById('hard-levels-screen').style.display = 'flex'
+      } else {
+        document.getElementById('easy-levels-screen').style.display = 'flex'
+      }
+      refreshLevelLockUI()
+    }
+
+    function danceTiles(tiles) {
+      tiles.forEach((tile, index) => {
+        setTimeout(() => {
+          tile.classList.add("dance")
+          tile.addEventListener("animationend", () => tile.classList.remove("dance"), { once: true })
+        }, (index * DANCE_ANIMATION_DURATION) / 5)
+      })
+    }
+
+    // ==================== 页面加载初始化 ====================
+    window.onload = function () {
+      keyboard = document.querySelector("[data-keyboard]")
+      alertContainer = document.querySelector("[data-alert-container]")
+      guessGrid = document.querySelector("[data-guess-grid]")
+
+      keyboard.innerHTML = `
+    <div class="keyboard-row">
+      <button type="button" class="key" data-key="Q">Q</button>
+      <button type="button" class="key" data-key="W">W</button>
+      <button type="button" class="key" data-key="E">E</button>
+      <button type="button" class="key" data-key="R">R</button>
+      <button type="button" class="key" data-key="T">T</button>
+      <button type="button" class="key" data-key="Y">Y</button>
+      <button type="button" class="key" data-key="U">U</button>
+      <button type="button" class="key" data-key="I">I</button>
+      <button type="button" class="key" data-key="O">O</button>
+      <button type="button" class="key" data-key="P">P</button>
+    </div>
+    <div class="keyboard-row">
+      <button type="button" class="key" data-key="A">A</button>
+      <button type="button" class="key" data-key="S">S</button>
+      <button type="button" class="key" data-key="D">D</button>
+      <button type="button" class="key" data-key="F">F</button>
+      <button type="button" class="key" data-key="G">G</button>
+      <button type="button" class="key" data-key="H">H</button>
+      <button type="button" class="key" data-key="J">J</button>
+      <button type="button" class="key" data-key="K">K</button>
+      <button type="button" class="key" data-key="L">L</button>
+    </div>
+    <div class="keyboard-row">
+      <button type="button" class="key wide" data-enter>Enter</button>
+      <button type="button" class="key" data-key="Z">Z</button>
+      <button type="button" class="key" data-key="X">X</button>
+      <button type="button" class="key" data-key="C">C</button>
+      <button type="button" class="key" data-key="V">V</button>
+      <button type="button" class="key" data-key="B">B</button>
+      <button type="button" class="key" data-key="N">N</button>
+      <button type="button" class="key" data-key="M">M</button>
+      <button type="button" class="key wide" data-delete>
+        <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" aria-hidden="true">
+          <path fill="currentColor" d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H7.07L2.4 12l4.66-7H22v14zm-11.59-2L14 13.41 17.59 17 19 15.59 15.41 12 19 8.41 17.59 7 14 10.59 10.41 7 9 8.41 12.59 12 9 15.59z"></path>
+        </svg>
+      </button>
+    </div>
+  `
+
+      refreshLevelLockUI()
+      console.log("✅ Game framework loaded, waiting for mode selection")
+    }
+  </script>
+</body>
+</html>
