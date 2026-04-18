@@ -1,7 +1,8 @@
 # COMP2116 Final Project: Arcane Lexicon (Wordle Game)
 
 ## Graphical Abstract
-![Graphical Abstract](2d351522667669c39663574708bfe7ad.jpg)
+<img width="1526" height="1280" alt="6a92e7395a2ad2ec603fec1607a6202a" src="https://github.com/user-attachments/assets/2f213694-4951-4e57-8451-846f28966630" />
+
 *(Figure: The main interface of Arcane Lexicon, showcasing the retro pixel-art UI, the 4x4 game grid, the virtual keyboard, and the dynamic "Discovered Letters" hint panel on the right.)*
 
 ---
